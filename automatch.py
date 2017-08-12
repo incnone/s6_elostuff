@@ -6,6 +6,11 @@ from typing import Dict, List, Set, Tuple
 import mysql.connector
 
 
+INPUT_FILENAME = 'am_ratings.csv'
+MATCHUP_FILENAME = 'matchups.csv'
+MATCHUP_PAIRS_FILENAME = 'matchpairs.csv'
+
+
 rand = random.Random()
 rand.seed()
 
@@ -177,9 +182,9 @@ def get_s6_banned_matchups() -> Set[Matchup]:
 
 
 if __name__ == "__main__":
-    elo_csv = 'results.csv'
-    matchup_output = 'matchups.csv'
-    matchpairs_output = 'matchpairs.csv'
+    elo_csv = INPUT_FILENAME
+    matchup_output = MATCHUP_FILENAME
+    matchpairs_output = MATCHUP_PAIRS_FILENAME
     write_s6_matchup_csv_from_elo_csv(elo_csv, matchup_output, matchpairs_output)
 
 
