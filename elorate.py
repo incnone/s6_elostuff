@@ -9,6 +9,7 @@ import time
 SEASON_6_PRIOR_STDEV = 1000.0
 SEASON_6_PRIOR_ELOS_FILENAME = 'priors.csv'
 SEASON_6_ELO_RESULTS_FILENAME = 'results'
+SEASON_6_RECORDS_FILENAME = 'records.txt'
 
 
 # Unit conversions-----------------------------------
@@ -98,6 +99,20 @@ class Player(object):
             second += matchup.games / (self.gamma + player.gamma)
         third = (math.log(self.gamma) - self.prior_r)/(self.gamma * self.prior_var)
         return first - second - third
+
+    @property
+    def matchup_info(self) -> str:
+        format_str = '{name}: [{wins} - {losses}] -- '
+        matchup_format = 'vs {opp}: [{wins} - {losses}]; '
+        total_wins = 0
+        total_losses = 0
+        for _, matchup in self._matchups.items():
+            total_wins += matchup.wins
+            total_losses += matchup.losses
+        outstr = format_str.format(name=self.name, wins=total_wins, losses=total_losses)
+        for player, matchup in self._matchups.items():
+            outstr += matchup_format.format(opp=player.name, wins=matchup.wins, losses=matchup.losses)
+        return outstr[:-2]
 
     def add_to_elo(self, amount):
         self.gamma *= elo_to_gamma(amount)
@@ -245,6 +260,12 @@ def make_player_dict(
     return player_dict
 
 
+def write_records(player_list: List[Player], filename: str):
+    with open(filename, 'w') as outfile:
+        for player in player_list:
+            outfile.write(player.matchup_info + '\n')
+
+
 # Season 6 specifics----------------------------------
 
 def get_s6_elos():
@@ -265,6 +286,7 @@ def get_s6_elos():
     # sorted_players = sorted(player_dict.values(), key=lambda p: p.gamma, reverse=True)
     write_csv(sorted_players, '{}.csv'.format(SEASON_6_ELO_RESULTS_FILENAME))
     write_formatted(sorted_players, '{}.txt'.format(SEASON_6_ELO_RESULTS_FILENAME))
+    write_records(sorted_players, '{}'.format(SEASON_6_RECORDS_FILENAME))
 
 
 def read_priors(filename: str) -> List[Tuple[str, float]]:
@@ -300,9 +322,13 @@ def get_gametuples_from_s6_database():
             FROM 
                 race_summary
             JOIN
+                matches ON matches.match_id = race_summary.match_id
+            JOIN
                 necrobot.users udw ON udw.user_id = race_summary.winner_id
             JOIN
                 necrobot.users udl ON udl.user_id = race_summary.loser_id
+            WHERE
+                matches.ranked
             """
         )
 
