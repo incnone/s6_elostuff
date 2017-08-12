@@ -4,6 +4,7 @@ import random
 import unittest
 from typing import Dict, List, Set, Tuple
 import mysql.connector
+import sys
 
 
 INPUT_FILENAME = 'am_ratings.csv'
@@ -182,10 +183,17 @@ def get_s6_banned_matchups() -> Set[Matchup]:
 
 
 if __name__ == "__main__":
-    elo_csv = INPUT_FILENAME
+    if len(sys.argv) > 1:
+        elo_csv = sys.argv[1]
+    else:
+        elo_csv = INPUT_FILENAME
+
     matchup_output = MATCHUP_FILENAME
     matchpairs_output = MATCHUP_PAIRS_FILENAME
+
+    print('Making matchups from Elo file {}...'.format(elo_csv))
     write_s6_matchup_csv_from_elo_csv(elo_csv, matchup_output, matchpairs_output)
+    print('Matchups created.')
 
 
 class TestAutomatch(unittest.TestCase):

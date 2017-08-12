@@ -4,6 +4,7 @@ from typing import Dict, List, Tuple
 import mysql.connector
 import unittest
 import time
+import sys
 
 
 SEASON_6_PRIOR_STDEV = 1000.0
@@ -268,9 +269,9 @@ def write_records(player_list: List[Player], filename: str):
 
 # Season 6 specifics----------------------------------
 
-def get_s6_elos():
+def get_s6_elos(prior_filename: str):
     prior_stdev = SEASON_6_PRIOR_STDEV
-    prior_elos = read_priors(SEASON_6_PRIOR_ELOS_FILENAME)
+    prior_elos = read_priors(prior_filename)
     gametuples = get_gametuples_from_s6_database()
     player_dict = make_player_dict(
         prior_elos=prior_elos,
@@ -346,7 +347,14 @@ def get_gametuples_from_s6_database():
 # Main --------------------------------------
 
 if __name__ == "__main__":
-    get_s6_elos()
+    if len(sys.argv) > 1:
+        priors_filename = sys.argv[1]
+    else:
+        priors_filename = SEASON_6_PRIOR_ELOS_FILENAME
+
+    print('Getting Elo priors from file {}...'.format(priors_filename))
+    get_s6_elos(priors_filename)
+    print('Elos written to file {}.csv'.format(SEASON_6_ELO_RESULTS_FILENAME))
 
 
 # Tests -------------------------------------
