@@ -2,7 +2,7 @@ import math
 import pulp
 import random
 import unittest
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 import mysql.connector
 
 
@@ -85,7 +85,15 @@ def get_matchups(
 
 def write_s6_matchup_csv_from_elo_csv(csv_filename: str, matchup_filename: str, summary_filename: str):
     the_elos = read_elos_from_csv(csv_filename)
-    matches = get_matchups(elos=the_elos, banned_matches=get_s6_banned_matchups(), num_matches=2)
+    the_elos_dict = dict()
+    name_cap_dict = dict()
+
+    for player_name, _ in the_elos:
+        name_cap_dict[player_name.lower()] = player_name
+
+    for player_name, player_elo in the_elos:
+        the_elos_dict[player_name.lower()] = player_elo
+    matches = get_matchups(elos=the_elos_dict, banned_matches=get_s6_banned_matchups(), num_matches=2)
 
     matches_by_player = dict()  # type: Dict[str, List[str]]
     for match in matches:
@@ -99,22 +107,28 @@ def write_s6_matchup_csv_from_elo_csv(csv_filename: str, matchup_filename: str, 
     with open(matchup_filename, 'w') as outfile:
         format_str = '{player_1},{player_2}\n'
         for match in matches:
-            outfile.write(format_str.format(player_1=match.player_1, player_2=match.player_2))
+            outfile.write(
+                format_str.format(
+                    player_1=name_cap_dict[match.player_1],
+                    player_2=name_cap_dict[match.player_2]
+                )
+            )
 
     with open(summary_filename, 'w') as outfile:
-        for player, match_list in matches_by_player.items():
-            line = player + ','
+        for player_name, _ in the_elos:
+            match_list = matches_by_player[player_name.lower()]
+            line = player_name + ','
             for opp in match_list:
                 line += opp + ','
             outfile.write(line[:-1] + '\n')
 
 
-def read_elos_from_csv(csv_filename: str) -> Dict[str, float]:
-    elos = dict()   # type: Dict[str, float]
+def read_elos_from_csv(csv_filename: str) -> List[Tuple[str, float]]:
+    elos = list()   # type: List[Tuple[str, float]]
     with open(csv_filename, 'r') as file:
         for line in file:
             vals = line.split(',')
-            elos[vals[0]] = float(vals[1])
+            elos.append((vals[0], float(vals[1]),))
     return elos
 
 

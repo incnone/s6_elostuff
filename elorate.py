@@ -55,13 +55,13 @@ class Player(object):
         self._total_test_wins = 0
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.name.lower())
 
     def __eq__(self, other):
-        return self.name == other.name
+        return self.name.lower() == other.name.lower()
 
     def __ne__(self, other):
-        return self.name != other.name
+        return not self.__eq__(other)
 
     @property
     def r(self):
@@ -215,10 +215,15 @@ def _do_write(player_list, filename, format_str):
             file.write(format_str.format(name=player.name, elo=player.elo) + '\n')
 
 
-def make_player_dict(prior_elos, gametuples, stdev, test_gametuples=list()) -> Dict[str, Player]:
+def make_player_dict(
+        prior_elos: List[Tuple[str, float]],
+        gametuples: List[Tuple[str, str, int, int]],
+        stdev: float,
+        test_gametuples=list()
+) -> Dict[str, Player]:
     player_dict = dict()  # type: Dict[str, Player]
-    for player, elo in prior_elos.items():
-        player_dict[player] = Player(name=player, prior_elo=elo, prior_stdev=stdev)
+    for player_name, elo in prior_elos:
+        player_dict[player_name.lower()] = Player(name=player_name, prior_elo=elo, prior_stdev=stdev)
 
     for p1name, p2name, p1wins, p2wins in gametuples:
         if p1name not in player_dict:
@@ -252,17 +257,22 @@ def get_s6_elos():
         stdev=prior_stdev
     )
     iterate_elos(player_dict.values())
-    sorted_players = sorted(player_dict.values(), key=lambda p: p.gamma, reverse=True)
+
+    sorted_players = list()  # type: List[Player]
+    for player_name, player_elo in prior_elos:
+        sorted_players.append(player_dict[player_name.lower()])
+
+    # sorted_players = sorted(player_dict.values(), key=lambda p: p.gamma, reverse=True)
     write_csv(sorted_players, '{}.csv'.format(SEASON_6_ELO_RESULTS_FILENAME))
     write_formatted(sorted_players, '{}.txt'.format(SEASON_6_ELO_RESULTS_FILENAME))
 
 
-def read_priors(filename: str) -> Dict[str, float]:
-    prior_elos = dict() # type: Dict[str, float]
+def read_priors(filename: str) -> List[Tuple[str, float]]:
+    prior_elos = list()  # type: List[Tuple[str, float]]
     with open(filename) as file:
         for line in file:
             args = line.split(',')
-            prior_elos[args[0]] = float(args[1])
+            prior_elos.append((args[0], float(args[1]),))
     return prior_elos
 
 
@@ -587,7 +597,7 @@ class TestRatings(unittest.TestCase):
         return gametuples, test_gametuples
 
     @staticmethod
-    def get_prior_elos():
+    def get_prior_elos() -> List[Tuple[str, int]]:
         elo_str = """
        1 spootybiscuit        678   91   91    49   65%   565    0% 
        2 incnone              655   84   84    60   63%   552    0% 
@@ -685,12 +695,12 @@ class TestRatings(unittest.TestCase):
       94 tome123             -833  218  218    18    0%  -428    0% 
         """
 
-        the_elos = {}
+        the_elos = list()  # type: List[Tuple[str, int]]
         for line in elo_str.split('\n'):
             args = line.split()
             if args:
                 # straightforward way
-                the_elos[args[1]] = int(args[2])
+                the_elos.append((args[1], int(args[2]),))
 
                 # weird clamping
                 # raw_elo = int(args[2])
