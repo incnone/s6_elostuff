@@ -23,13 +23,16 @@ class Matchup(object):
         self.player_2 = player_2 if player_1 < player_2 else player_1
 
     def __hash__(self):
-        return hash((self.player_1, self.player_2,))
+        return hash((self.player_1.lower(), self.player_2.lower(),))
 
     def __eq__(self, other):
-        return self.player_1 == other.player_1 and self.player_2 == other.player_2
+        return self.player_1.lower() == other.player_1.lower() and self.player_2.lower() == other.player_2.lower()
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __repr__(self):
+        return 'Matchup {} - {}'.format(self.player_1, self.player_2)
 
 
 def get_entropy(p1_elo: float, p2_elo: float) -> float:
@@ -144,7 +147,7 @@ def get_extra_banned_matchups() -> Set[Matchup]:
     with open(BANNED_MACHUPS_FILENAME) as file:
         for line in file:
             players = line.split(',')
-            matchups.add(Matchup(players[0].lower(), players[1].lower()))
+            matchups.add(Matchup(players[0].lower(), players[1].lower().rstrip('\n')))
     return matchups
 
 
@@ -178,6 +181,7 @@ def get_s6_banned_matchups() -> Set[Matchup]:
         )
 
         banned_matchups = get_extra_banned_matchups()    # type: Set[Matchup]
+        print(banned_matchups)
 
         for row in cursor:
             if row[0] is None or row[1] is None:
