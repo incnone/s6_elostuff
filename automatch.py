@@ -10,6 +10,7 @@ import sys
 INPUT_FILENAME = 'am_ratings.csv'
 MATCHUP_FILENAME = 'matchups.csv'
 MATCHUP_PAIRS_FILENAME = 'matchpairs.csv'
+BANNED_MACHUPS_FILENAME = 'bannedmatches.txt'
 
 
 rand = random.Random()
@@ -138,6 +139,15 @@ def read_elos_from_csv(csv_filename: str) -> List[Tuple[str, float]]:
     return elos
 
 
+def get_extra_banned_matchups() -> Set[Matchup]:
+    matchups = set()    # type: Set[Matchup]
+    with open(BANNED_MACHUPS_FILENAME) as file:
+        for line in file:
+            players = line.split(',')
+            matchups.add(Matchup(players[0].lower(), players[1].lower()))
+    return matchups
+
+
 def get_s6_banned_matchups() -> Set[Matchup]:
     mysql_db_host = 'necrobot.condorleague.tv'
     mysql_db_user = 'necrobot-read'
@@ -167,7 +177,7 @@ def get_s6_banned_matchups() -> Set[Matchup]:
             """
         )
 
-        banned_matchups = set()
+        banned_matchups = get_extra_banned_matchups()    # type: Set[Matchup]
 
         for row in cursor:
             if row[0] is None or row[1] is None:
