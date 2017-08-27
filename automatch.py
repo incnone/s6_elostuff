@@ -80,7 +80,7 @@ def get_matchups(
             if player in matchups[otherplayer]:
                 edges_from_player.append(matchups[otherplayer][player])
 
-        ilp_prob += pulp.lpSum(edges_from_player) <= num_matches, ""
+        ilp_prob += pulp.lpSum(edges_from_player) == num_matches, ""
 
     # Solve problem
     ilp_prob.solve(pulp.PULP_CBC_CMD(maxSeconds=20, msg=0, fracGap=0.001))
