@@ -6,11 +6,17 @@ import unittest
 import time
 import sys
 
+mysql_db_host = 'condor.live'
+mysql_db_user = 'necrobot-read'
+mysql_db_passwd = 'necrobot-read'
+mysql_db_name = 'season_6'
 
-SEASON_6_PRIOR_STDEV = 1000.0
-SEASON_6_PRIOR_ELOS_FILENAME = 'priors.csv'
-SEASON_6_ELO_RESULTS_FILENAME = 'ratings'
-SEASON_6_RECORDS_FILENAME = 'records.txt'
+PRIOR_STDEV = 1000.0
+PRIOR_ELOS_FILENAME = 'data/priors.csv'
+ELO_RESULTS_FILENAME = 'data/ratings'
+RECORDS_FILENAME = 'data/records'
+LEAGUE_DATABASE_NAME = 'season_6'
+LOG_FILENAME = 'data/elorate_log.txt'
 
 
 # Unit conversions-----------------------------------
@@ -167,7 +173,7 @@ def iterate_elos(player_list, max_repeats=200000, max_sec=1200, verbose=False):
     l2_grad = 0.0
     sec = begin
 
-    with open('elorate_log.txt', 'w') as iter_log:
+    with open(LOG_FILENAME, 'w') as iter_log:
         for idx in range(max_repeats):
             l2_elo_diff = 0.0
             l2_grad = 0.0
@@ -184,7 +190,7 @@ def iterate_elos(player_list, max_repeats=200000, max_sec=1200, verbose=False):
 
             l2_elo_diff = math.sqrt(l2_elo_diff)
             l2_grad = math.sqrt(l2_grad)
-            sec = time.clock() - begin
+            sec = time.monotonic() - begin
 
             if verbose:
                 iter_log.write(format_str.format(iter=idx, sec=sec, elo=l2_elo_diff, grad=l2_grad) + '\n')
@@ -235,8 +241,11 @@ def make_player_dict(
         prior_elos: List[Tuple[str, float]],
         gametuples: List[Tuple[str, str, int, int]],
         stdev: float,
-        test_gametuples=list()
+        test_gametuples: List[Tuple[str, str, int, int]] = None
 ) -> Dict[str, Player]:
+    if test_gametuples is None:
+        test_gametuples = []
+    
     player_dict = dict()  # type: Dict[str, Player]
     for player_name, elo in prior_elos:
         player_dict[player_name.lower()] = Player(name=player_name, prior_elo=elo, prior_stdev=stdev)
@@ -244,8 +253,10 @@ def make_player_dict(
     for p1name, p2name, p1wins, p2wins in gametuples:
         if p1name not in player_dict:
             print('Error: {name} has no prior elo.'.format(name=p1name))
+            continue
         if p2name not in player_dict:
             print('Error: {name} has no prior elo.'.format(name=p2name))
+            continue
 
         p1 = player_dict[p1name]
         p2 = player_dict[p2name]
@@ -267,27 +278,33 @@ def write_records(player_list: List[Player], filename: str):
             outfile.write(player.matchup_info + '\n')
 
 
-# Season 6 specifics----------------------------------
+# Necrobot specifics----------------------------------
 
-def get_s6_elos(prior_filename: str):
-    prior_stdev = SEASON_6_PRIOR_STDEV
+def get_elos(
+        prior_filename: str,
+        games_database_name: str,
+        max_repeats: int = 200000,
+        max_sec: int = 1200,
+        verbose: bool = False
+):
+    prior_stdev = PRIOR_STDEV
     prior_elos = read_priors(prior_filename)
-    gametuples = get_gametuples_from_s6_database()
+    gametuples = get_gametuples_from_database(games_database_name)
     player_dict = make_player_dict(
         prior_elos=prior_elos,
         gametuples=gametuples,
         stdev=prior_stdev
     )
-    iterate_elos(player_dict.values())
+    iterate_elos(player_dict.values(), max_repeats, max_sec, verbose)
 
     sorted_players = list()  # type: List[Player]
     for player_name, player_elo in prior_elos:
         sorted_players.append(player_dict[player_name.lower()])
 
     # sorted_players = sorted(player_dict.values(), key=lambda p: p.gamma, reverse=True)
-    write_csv(sorted_players, '{}.csv'.format(SEASON_6_ELO_RESULTS_FILENAME))
-    write_formatted(sorted_players, '{}.txt'.format(SEASON_6_ELO_RESULTS_FILENAME))
-    write_records(sorted_players, '{}'.format(SEASON_6_RECORDS_FILENAME))
+    write_csv(sorted_players, '{}.csv'.format(ELO_RESULTS_FILENAME))
+    write_formatted(sorted_players, '{}.txt'.format(ELO_RESULTS_FILENAME))
+    write_records(sorted_players, '{}.txt'.format(RECORDS_FILENAME))
 
 
 def read_priors(filename: str) -> List[Tuple[str, float]]:
@@ -299,12 +316,7 @@ def read_priors(filename: str) -> List[Tuple[str, float]]:
     return prior_elos
 
 
-def get_gametuples_from_s6_database():
-    mysql_db_host = 'necrobot.condorleague.tv'
-    mysql_db_user = 'necrobot-read'
-    mysql_db_passwd = 'necrobot-read'
-    mysql_db_name = 'season_6'
-
+def get_gametuples_from_database(database_name):
     db_conn = mysql.connector.connect(
         user=mysql_db_user,
         password=mysql_db_passwd,
@@ -350,11 +362,11 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         priors_filename = sys.argv[1]
     else:
-        priors_filename = SEASON_6_PRIOR_ELOS_FILENAME
+        priors_filename = PRIOR_ELOS_FILENAME
 
     print('Getting Elo priors from file {}...'.format(priors_filename))
-    get_s6_elos(priors_filename)
-    print('Elos written to file {}.csv'.format(SEASON_6_ELO_RESULTS_FILENAME))
+    get_elos(priors_filename, LEAGUE_DATABASE_NAME)
+    print('Elos written to file {}.csv'.format(ELO_RESULTS_FILENAME))
 
 
 # Tests -------------------------------------
@@ -363,27 +375,29 @@ class TestRatings(unittest.TestCase):
     def setUp(self):
         pass
 
-    def test_s6_ratings(self):
-        get_s6_elos()
-
-    def test_ratings(self):
+    @unittest.skip
+    def test_ratings_1(self):
         stdev = 140.0
         self.players = dict()   # type: Dict[str, Player]
         games, test_games = self.read_season5_db()
-        self.player_dict = make_player_dict(
+        self.players = make_player_dict(
             prior_elos=self.get_prior_elos(),
             gametuples=games,
             stdev=stdev,
             test_gametuples=test_games
         )
 
-        iterate_elos(self.players.values())
+        iterate_elos(self.players.values(), max_repeats=2000, max_sec=12, verbose=False)
         normalize_elos(self.players.values(), 0)
         sorted_players = sorted(self.players.values(), key=lambda p: p.gamma, reverse=True)
 
         write_csv(player_list=sorted_players)
         write_formatted(player_list=sorted_players)
 
+    def test_ratings(self):
+        get_elos(PRIOR_ELOS_FILENAME, 'season_6', max_repeats=1000, max_sec=3, verbose=False)
+
+    @unittest.skip
     def test_stdev(self):
         steps = 10
         min_stdev = 100
@@ -567,16 +581,11 @@ class TestRatings(unittest.TestCase):
             CondorMatch(7, 'incnone', 'mudjoe2', 3, 0),
         ]
 
-        mysql_db_host = 'necrobot.condorleague.tv'
-        mysql_db_user = 'necrobot-read'
-        mysql_db_passwd = 'necrobot-read'
-        mysql_db_name = 'condor_s5'
-
         db_conn = mysql.connector.connect(
             user=mysql_db_user,
             password=mysql_db_passwd,
             host=mysql_db_host,
-            database=mysql_db_name
+            database='condor_s5'
         )
 
         try:
@@ -613,11 +622,6 @@ class TestRatings(unittest.TestCase):
                 gametuples.append((racer_1, racer_2, racer_1_wins, racer_2_wins,))
         finally:
             db_conn.close()
-
-        playoffs_players = [
-            'spootybiscuit', 'mudjoe2', 'jackofgames', 'oblivion111', 'incnone', 'cyber_1',
-            'naymin', 'mayantics', 'staekk', 'disgruntledgoof', 'revalize', 'echaen'
-        ]
 
         for match in showcase_matches:
             # if match.racer_1.lower() in playoffs_players and match.racer_2.lower() in playoffs_players:

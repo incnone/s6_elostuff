@@ -7,10 +7,15 @@ import mysql.connector
 import sys
 
 
-INPUT_FILENAME = 'am_ratings.csv'
-MATCHUP_FILENAME = 'matchups.csv'
-MATCHUP_PAIRS_FILENAME = 'matchpairs.csv'
-BANNED_MACHUPS_FILENAME = 'bannedmatches.txt'
+mysql_db_host = 'condor.live'
+mysql_db_user = 'necrobot-read'
+mysql_db_passwd = 'necrobot-read'
+mysql_db_name = 'season_6'
+
+INPUT_FILENAME = 'data/am_ratings.csv'
+MATCHUP_FILENAME = 'data/matchups.csv'
+MATCHUP_PAIRS_FILENAME = 'data/matchpairs.csv'
+BANNED_MACHUPS_FILENAME = 'data/bannedmatches.txt'
 
 
 rand = random.Random()
@@ -93,7 +98,7 @@ def get_matchups(
     return created_matches
 
 
-def write_s6_matchup_csv_from_elo_csv(csv_filename: str, matchup_filename: str, summary_filename: str):
+def write_matchup_csv_from_elo_csv(csv_filename: str, matchup_filename: str, summary_filename: str):
     the_elos = read_elos_from_csv(csv_filename)
     the_elos_dict = dict()
     name_cap_dict = dict()
@@ -103,7 +108,7 @@ def write_s6_matchup_csv_from_elo_csv(csv_filename: str, matchup_filename: str, 
 
     for player_name, player_elo in the_elos:
         the_elos_dict[player_name.lower()] = player_elo
-    matches = get_matchups(elos=the_elos_dict, banned_matches=get_s6_banned_matchups(), num_matches=2)
+    matches = get_matchups(elos=the_elos_dict, banned_matches=get_banned_matchups(), num_matches=2)
 
     matches_by_player = dict()  # type: Dict[str, List[str]]
     for match in matches:
@@ -151,12 +156,7 @@ def get_extra_banned_matchups() -> Set[Matchup]:
     return matchups
 
 
-def get_s6_banned_matchups() -> Set[Matchup]:
-    mysql_db_host = 'necrobot.condorleague.tv'
-    mysql_db_user = 'necrobot-read'
-    mysql_db_passwd = 'necrobot-read'
-    mysql_db_name = 'season_6'
-
+def get_banned_matchups() -> Set[Matchup]:
     db_conn = mysql.connector.connect(
         user=mysql_db_user,
         password=mysql_db_passwd,
@@ -206,7 +206,7 @@ if __name__ == "__main__":
     matchpairs_output = MATCHUP_PAIRS_FILENAME
 
     print('Making matchups from Elo file {}...'.format(elo_csv))
-    write_s6_matchup_csv_from_elo_csv(elo_csv, matchup_output, matchpairs_output)
+    write_matchup_csv_from_elo_csv(elo_csv, matchup_output, matchpairs_output)
     print('Matchups created.')
 
 
@@ -214,13 +214,13 @@ class TestAutomatch(unittest.TestCase):
     MAX_ELO = 678
     MIN_ELO = -833
 
-    def test_s6_automatch(self):
-        elo_csv = 'results.csv'
-        matchup_output = 'matchups.csv'
-        matchpairs_output = 'matchpairs.csv'
-        write_s6_matchup_csv_from_elo_csv(elo_csv, matchup_output, matchpairs_output)
-
     def test_automatch(self):
+        elo_csv = 'data/results.csv'
+        matchup_output = 'data/matchups.csv'
+        matchpairs_output = 'data/matchpairs.csv'
+        write_matchup_csv_from_elo_csv(elo_csv, matchup_output, matchpairs_output)
+
+    def test_season_automatch(self):
         num_weeks = 5
         the_elos = self.get_elos()
         banned_matches = set()  # type: Set[Matchup]
