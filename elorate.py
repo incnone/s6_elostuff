@@ -9,14 +9,19 @@ import sys
 mysql_db_host = 'condor.live'
 mysql_db_user = 'necrobot-read'
 mysql_db_passwd = 'necrobot-read'
-mysql_db_name = 'season_6'
+mysql_db_name = 'season_8'
 
 PRIOR_STDEV = 1000.0
-PRIOR_ELOS_FILENAME = 'data/priors.csv'
+PRIOR_ELOS_FILENAME = 'data/S8Initial.csv'
 ELO_RESULTS_FILENAME = 'data/ratings'
 RECORDS_FILENAME = 'data/records'
-LEAGUE_DATABASE_NAME = 'season_6'
+LEAGUE_DATABASE_NAME = 'season_8'
 LOG_FILENAME = 'data/elorate_log.txt'
+
+ignored_racers = [
+    'naymin',
+    'kingtorture'
+]
 
 
 # Unit conversions-----------------------------------
@@ -274,7 +279,7 @@ def make_player_dict(
 
 def write_records(player_list: List[Player], filename: str):
     with open(filename, 'w') as outfile:
-        for player in player_list:
+        for player in sorted(player_list, key=lambda player: player.name.lower()):
             outfile.write(player.matchup_info + '\n')
 
 
@@ -301,7 +306,7 @@ def get_elos(
     for player_name, player_elo in prior_elos:
         sorted_players.append(player_dict[player_name.lower()])
 
-    # sorted_players = sorted(player_dict.values(), key=lambda p: p.gamma, reverse=True)
+    sorted_players = sorted(player_dict.values(), key=lambda p: p.gamma, reverse=True)
     write_csv(sorted_players, '{}.csv'.format(ELO_RESULTS_FILENAME))
     write_formatted(sorted_players, '{}.txt'.format(ELO_RESULTS_FILENAME))
     write_records(sorted_players, '{}.txt'.format(RECORDS_FILENAME))
@@ -321,7 +326,7 @@ def get_gametuples_from_database(database_name):
         user=mysql_db_user,
         password=mysql_db_passwd,
         host=mysql_db_host,
-        database=mysql_db_name
+        database=database_name
     )
 
     try:
@@ -330,8 +335,8 @@ def get_gametuples_from_database(database_name):
         cursor.execute(
             """
             SELECT 
-                udw.rtmp_name AS winner_name,
-                udl.rtmp_name AS loser_name
+                udw.twitch_name AS winner_name,
+                udl.twitch_name AS loser_name
             FROM 
                 race_summary
             JOIN
@@ -340,8 +345,6 @@ def get_gametuples_from_database(database_name):
                 necrobot.users udw ON udw.user_id = race_summary.winner_id
             JOIN
                 necrobot.users udl ON udl.user_id = race_summary.loser_id
-            WHERE
-                matches.ranked
             """
         )
 
@@ -350,7 +353,10 @@ def get_gametuples_from_database(database_name):
             racer_1 = row[0].lower()
             racer_2 = row[1].lower()
 
-            gametuples.append((racer_1, racer_2, 1, 0,))
+            if racer_1 not in ignored_racers and racer_2 not in ignored_racers:
+                gametuples.append((racer_1, racer_2, 1, 0,))
+            else:
+                print("Ignored game {r1}-{r2}".format(r1=racer_1, r2=racer_2))
         return gametuples
     finally:
         db_conn.close()

@@ -48,8 +48,14 @@ Temporary Items
 
 # PyCharm stuff
 .idea/
+venv/
 
 # Program output
 *.txt
 *.csv
 *.mps
+data/
+data_old/
+
+# Other
+s8predict.py

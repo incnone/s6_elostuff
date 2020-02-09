@@ -10,9 +10,9 @@ import sys
 mysql_db_host = 'condor.live'
 mysql_db_user = 'necrobot-read'
 mysql_db_passwd = 'necrobot-read'
-mysql_db_name = 'season_6'
+mysql_db_name = 'season_9'
 
-INPUT_FILENAME = 'data/am_ratings.csv'
+INPUT_FILENAME = 'data/ratings.csv'
 MATCHUP_FILENAME = 'data/matchups.csv'
 MATCHUP_PAIRS_FILENAME = 'data/matchpairs.csv'
 BANNED_MACHUPS_FILENAME = 'data/bannedmatches.txt'
@@ -169,8 +169,8 @@ def get_banned_matchups() -> Set[Matchup]:
         cursor.execute(
             """
             SELECT 
-                ud1.rtmp_name AS racer_1,
-                ud2.rtmp_name AS racer_2
+                ud1.twitch_name AS racer_1,
+                ud2.twitch_name AS racer_2
             FROM 
                 matches
             JOIN
@@ -181,7 +181,6 @@ def get_banned_matchups() -> Set[Matchup]:
         )
 
         banned_matchups = get_extra_banned_matchups()    # type: Set[Matchup]
-        print(banned_matchups)
 
         for row in cursor:
             if row[0] is None or row[1] is None:
@@ -191,12 +190,14 @@ def get_banned_matchups() -> Set[Matchup]:
             racer_2 = row[1].lower()
             banned_matchups.add(Matchup(racer_1, racer_2))
 
+        print(banned_matchups)
+
         return banned_matchups
     finally:
         db_conn.close()
 
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) > 1:
         elo_csv = sys.argv[1]
     else:
@@ -210,12 +211,17 @@ if __name__ == "__main__":
     print('Matchups created.')
 
 
+if __name__ == "__main__":
+    # unittest.main()
+    main()
+
+
 class TestAutomatch(unittest.TestCase):
     MAX_ELO = 678
     MIN_ELO = -833
 
     def test_automatch(self):
-        elo_csv = 'data/results.csv'
+        elo_csv = 'data/ratings_test.csv'
         matchup_output = 'data/matchups.csv'
         matchpairs_output = 'data/matchpairs.csv'
         write_matchup_csv_from_elo_csv(elo_csv, matchup_output, matchpairs_output)
