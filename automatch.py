@@ -10,11 +10,11 @@ import sys
 mysql_db_host = 'condor.live'
 mysql_db_user = 'necrobot-read'
 mysql_db_passwd = 'necrobot-read'
-mysql_db_name = 'season_9'
+mysql_db_name = 'condor_x'
 
-INPUT_FILENAME = 'data/ratings.csv'
-MATCHUP_FILENAME = 'data/matchups.csv'
-MATCHUP_PAIRS_FILENAME = 'data/matchpairs.csv'
+INPUT_FILENAME = 'data/sxranks.csv'
+MATCHUP_FILENAME = 'data/matchups_sx_wk1.csv'
+MATCHUP_PAIRS_FILENAME = 'data/matchpairs_sx_wk1.csv'
 BANNED_MACHUPS_FILENAME = 'data/bannedmatches.txt'
 
 
